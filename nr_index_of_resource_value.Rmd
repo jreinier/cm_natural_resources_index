@@ -1,0 +1,285 @@
+---
+title: "The Index of Naural Resource Value: A Tool for Assessing the Integrity of Natural Areas in Cleveland Metroparks"
+knit: (function(input_file, encoding) {
+    out_dir <- 'docs';
+    rmarkdown::render(input_file,
+      encoding=encoding,
+      output_file=file.path(dirname(input_file), out_dir, 'index.html'))})
+author: "Author: John Reinier"
+date: "Last Updated: `r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: false
+    theme: flatly
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r lib, include=FALSE, eval=TRUE}
+library(RPostgres)
+library(ggplot2)
+library(dplyr)
+library(EnvStats)
+```
+
+```{r ,include=FALSE, eval=TRUE}
+config <- config::get()
+
+## alternatively
+dw <- config::get("datawarehouse")
+
+conn <- dbConnect(RPostgres::Postgres(),
+                      host = dw$server,
+                      user    = dw$uid,
+                      password    = dw$pwd,
+                      port   = dw$port,
+                      dbname = dw$database
+)
+```
+
+
+# Study Area
+
+![](G:/NaturalResources/Reinier/Documents/Documents/Git/cm_plant_community_classification/study_area_map.png)
+
+# Methods
+
+Describe process for delineating catchments to use as assessment areas.
+
+# Metric Descritpions
+
+## Wetland Quantity
+
+This metric assigns points based on the percentage of the catchment mapped as wetland.  The score breakpoints are:  
+
+50% or greater  - 10 points    
+25% to 50%  - 7 points  
+10% to 25% - 5 points  
+5% to 10% - 3 points  
+1% to 5% - 1 point
+
+## Wetland Quality
+
+Points are assigned according to the weighted average ORAM score/category within a catchment.  Example: Wetland A is 3 acres with an ORAM score of 50, Wetland B is 2 acres with a score of 75 and Wetland C is 2 acres with a score of 60.  Next, multiply each wetland acreage by its ORAM score and add the products together: (50x3) + (75x2) + (60x2) = 420.  Finally, divided by the total acreage to get the weighted average score: 420/7 = 60.  The weighted average ORAM category is then determined using Ohio EPA's breakpoints (Mack 2000).
+
+
+![](G:/NaturalResources/Reinier/Documents/Documents/Git/nr_index/oram_cat_breakpoints.png)
+ 
+
+ORAM Category 3 - 10 points  
+ORAM Category 2b - 7 points  
+ORAM Category 2a - 3 points  
+ORAM Category 1 - 1 point
+
+
+## Stream Quality
+
+Point are assigned according to the weighted average stream biological assessment score/category within a catchment.  To get the weighted average score, points representing assessment sites were joined to the appropriate stream segment and "walked" updstream until the next assessment point is encountered.  This allows assessment data to get applied to a stretch of stream rather than just a single point.  The length is then used as a weigting factor for the weighted average calculation. 
+
+<div class="warning" style='padding:0.1em; background-color:#E9D8FD; color:#69337A'>
+<span>
+<p style='margin-top:1em; text-align:center'>
+<b>Network Walking</b></p>
+<p style='margin-left:1em;'>
+WITH walked AS (  
+         WITH RECURSIVE walk_network(wkb_geometry,   
+		 reference_stream_id,   
+		 ogc_fid,  
+		 "year",   
+		 "type",   
+		 score,   
+		 narr,   
+		 x1,   
+		 y1,   
+		 x2,   
+		 y2) AS (  
+                 SELECT a.wkb_geometry,  
+                    a.reference_stream_id,  
+                    a.ogc_fid,  
+                    b."year",  
+                    b."type",  
+                    b.score,  
+                    b.narr,  
+                    a.x1,  
+                    a.y1,  
+                    a.x2,  
+                    a.y2  
+                   FROM nr_sensitivity.all_stream_data_merged_to_segment a  
+                   LEFT JOIN nr_sensitivity.bio_narrative_to_streams b ON a.ogc_fid = b.ogc_fid  
+                  WHERE a.reference_stream_id IS NOT NULL  
+                UNION ALL  
+                 SELECT n.wkb_geometry,  
+                    w.reference_stream_id,  
+                    n.ogc_fid,  
+                    w."year",  
+                    w."type",  
+                    w.score,  
+                    w.narr,  
+                    n.x1,  
+                    n.y1,  
+                    n.x2,  
+                    n.y2  
+                   FROM nr_sensitivity.all_stream_data_merged_to_segment n,  
+                    walk_network w  
+                  WHERE n.x2 = w.x1 AND n.y2 = w.y1 AND n.hhei_score IS NULL   
+                )  
+         SELECT walk_network.wkb_geometry,  
+            walk_network.ogc_fid,  
+            walk_network.reference_stream_id,  
+            walk_network."type",  
+            walk_network.score,  
+            walk_network."year",  
+            walk_network.narr,  
+            walk_network.x1,  
+            walk_network.x2,  
+            walk_network.y1,  
+            walk_network.y2  
+           FROM walk_network  
+          ORDER BY walk_network.reference_stream_id, walk_network.ogc_fid  
+        )  
+ SELECT a.ogc_fid,  
+    a.wkb_geometry,  
+    a.type_code,  
+    a.network,  
+    a.x1,  
+    a.y1,  
+    a.x2,  
+    a.y2,  
+    a.tostream,  
+    b.reference_stream_id,  
+    b.score,  
+	CASE  
+	WHEN b."type" = 'cm hmfei' THEN b."year"   
+	ELSE c."year"   
+	END   
+	AS applied_bio_assess_year,  
+	CASE   
+	WHEN b."type" = 'cm hmfei' THEN b."type"   
+	ELSE c."type"   
+	END   
+	AS applied_bio_assess_type,  
+	CASE  
+	WHEN b."type" = 'cm hmfei' THEN b.score   
+	ELSE c.score   
+	END   
+	AS applied_bio_assess_score,  
+	CASE  
+	WHEN b."type" = 'cm hmfei' THEN b.narr   
+	ELSE c.narr   
+	END   
+	AS applied_bio_assess_narr  
+   FROM nr_sensitivity.all_stream_data_merged_to_segment a  
+     LEFT JOIN walked b ON a.ogc_fid = b.ogc_fid  
+     LEFT JOIN nr_sensitivity.bio_narrative_to_streams c ON a.ogc_fid = c.ogc_fid  
+;
+</p>
+</span>
+</div>  
+<br>
+<br>
+<br>
+
+![](G:/NaturalResources/Reinier/Documents/Documents/Git/nr_index/network_walking_example.png)
+
+
+Stream quality metric points are assigned as follows:  
+
+Biology Narrative is "Exceptional" or "Very Good" - 10 points  
+Biology Narrative is "Good" - 7 points  
+Biology Narrative is "Marginally Good" - 5 points  
+Biology Narrative is "Fair" - 3 points  
+Biology Narrative is "Poor" or "Very Poor" - 1 point  
+
+## Rare Features
+
+Points for this metric are assigned based on the occurrence of rare taxa within a catchment.  Each taxon is only counted once per catchment it occurs in even though there may be multiple individual records for it.  Conservation status assignment generally follows the Natureserve methodology (Natureserve citation). 
+
+Taxa of Global Conservation Concern (G1, G2, G3) - 10 points  
+Ohio endangered taxa - 7 points  
+Ohio threatened taxa - 5 points  
+Ohio potentially threatened taxa - 3 points  
+Cleveland Metroparks rare taxa (P1, P2) - 1 point
+
+## Core Habitat
+
+Points for core habitat are assigned based on the percentage of the catchment that falls within core (i.e., buffered) areas.  These core habitat areas were delineate and mapped by Cleveland Metroparks' GIS staff (need to provide more background/details on this).
+<br>
+<br>
+
+## Results
+
+```{r query, include=FALSE, eval=TRUE}
+nr.index <- dbGetQuery(conn, "SELECT *,
+ST_Area(geom)/43560 AS area_acres
+FROM nr_sensitivity.nr_value_index_nested_mean_clipped_cm
+WHERE nr_value_index_modifier IS NULL;")
+```
+
+```{r ,include=TRUE, eval=TRUE}
+nr.index.sub1 <- nr.index[which (nr.index$area_acres < 500),]
+```
+
+```{r ,include=TRUE, eval=TRUE}
+nr.index.sub1 <- nr.index.sub1 %>%
+  mutate(size_cat = case_when (area_acres >= 200 ~ 'large',
+                             area_acres >= 100 ~ 'medium',
+                             .default = 'small'))
+```
+
+```{r ,include=TRUE, eval=TRUE}
+ggplot(nr.index.sub1, aes(x = area_acres)) +
+  geom_histogram (colour = "black", fill = "white", binwidth = 20) +
+  ggtitle("Distribution of Catchment Size") +
+  xlab("")
+```
+
+```{r ,include=TRUE, eval=TRUE}
+ggplot(nr.index.sub1, aes(x = sqrt(area_acres))) +
+  geom_histogram (colour = "black", fill = "white", binwidth = 1) +
+  ggtitle("Distribution of Catchment Size") +
+  xlab("")
+```
+
+```{r ,include=TRUE, eval=TRUE}
+ggplot(nr.index, aes(x = nr_value_index)) +
+  geom_histogram (colour = "black", fill = "white", binwidth = 2) +
+  ggtitle("Distribution of NR Index Values") +
+  xlab("")
+```
+
+```{r ,include=TRUE, eval=TRUE}
+ggplot(nr.index, aes(nr_value_index_narrative)) +
+  geom_bar(colour = "black", fill = "white", stat = "count") +
+  scale_x_discrete(limits=c("high value", "moderately high value", "moderate value", "limited value")) +
+  ggtitle("Number of Catchments by Value Rating") +
+  xlab("")
+```
+
+```{r ,include=TRUE, eval=TRUE}
+ggplot(nr.index, aes(x = nr_value_index_narrative, y = sqrt(area_acres))) +
+  geom_bar(stat = "identity") +
+  scale_x_discrete(limits=c("high value", "moderately high value", "moderate value", "limited value")) +
+  ggtitle("Acres by Value Rating") +
+  xlab("")
+```
+
+```{r ,include=TRUE, eval=TRUE}
+ggplot(nr.index, aes(x = area_acres, y = nr_value_index)) +
+  geom_point(aes(shape = factor(nr_value_index_narrative))) +
+  geom_smooth(method=lm)
+```
+
+#### Let's remove that huge Bradley Woods cathcment and plto again
+
+```{r ,include=TRUE, eval=TRUE}
+ggplot(nr.index.sub1, aes(x = sqrt(area_acres), y = nr_value_index)) +
+  geom_point(aes(shape = factor(nr_value_index_narrative))) +
+  geom_smooth(method=lm)
+```
+
+ggplot(nr.index.sub1, aes(x=size_cat, y=nr_value_index)) + geom_boxplot() + theme(axis.text.x  = element_text(angle=45, vjust=0.5)) + xlab("Size Category") + ylab("Index Score") + stat_n_text()
+
