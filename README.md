@@ -1,0 +1,1 @@
+# cm_natural_resources_index
