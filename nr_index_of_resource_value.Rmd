@@ -16,7 +16,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
 ```
 
 ```{r lib, include=FALSE, eval=TRUE}
@@ -24,6 +24,7 @@ library(RPostgres)
 library(ggplot2)
 library(dplyr)
 library(EnvStats)
+library(ggpubr)
 ```
 
 ```{r ,include=FALSE, eval=TRUE}
@@ -67,7 +68,7 @@ This metric assigns points based on the percentage of the catchment mapped as we
 Points are assigned according to the weighted average ORAM score/category within a catchment.  Example: Wetland A is 3 acres with an ORAM score of 50, Wetland B is 2 acres with a score of 75 and Wetland C is 2 acres with a score of 60.  Next, multiply each wetland acreage by its ORAM score and add the products together: (50x3) + (75x2) + (60x2) = 420.  Finally, divided by the total acreage to get the weighted average score: 420/7 = 60.  The weighted average ORAM category is then determined using Ohio EPA's breakpoints (Mack 2000).
 
 
-![](G:/NaturalResources/Reinier/Documents/Documents/Git/nr_index/oram_cat_breakpoints.png)
+![](G:/NaturalResources/Reinier/Documents/Documents/Git/cm_natural_resources_index/oram_cat_breakpoints.png)
  
 
 ORAM Category 3 - 10 points  
@@ -183,7 +184,7 @@ WITH walked AS (
 <br>
 <br>
 
-![](G:/NaturalResources/Reinier/Documents/Documents/Git/nr_index/network_walking_example.png)
+![](G:/NaturalResources/Reinier/Documents/Documents/Git/cm_natural_resources_index/network_walking_example.png)
 
 
 Stream quality metric points are assigned as follows:  
@@ -206,53 +207,56 @@ Cleveland Metroparks rare taxa (P1, P2) - 1 point
 
 ## Core Habitat
 
-Points for core habitat are assigned based on the percentage of the catchment that falls within core (i.e., buffered) areas.  These core habitat areas were delineate and mapped by Cleveland Metroparks' GIS staff (need to provide more background/details on this).
+Points for core habitat are assigned based on the percentage of the catchment that falls within core (i.e., buffered) areas.These core habitat areas were delineate and mapped by Cleveland Metroparks' GIS staff (need to provide more background/details on this).
 <br>
 <br>
 
 ## Results
 
 ```{r query, include=FALSE, eval=TRUE}
-nr.index <- dbGetQuery(conn, "SELECT *,
-ST_Area(geom)/43560 AS area_acres
-FROM nr_sensitivity.nr_value_index_nested_mean_clipped_cm
-WHERE nr_value_index_modifier IS NULL;")
+nr.index <- dbGetQuery(conn, "SELECT * FROM nr_sensitivity.nr_value_index_with_ldi_1km;")
 ```
 
-```{r ,include=TRUE, eval=TRUE}
-nr.index.sub1 <- nr.index[which (nr.index$area_acres < 500),]
+```{r , include=FALSE}
+# create a categorical variable that assigns each site to a disturbance category based on LDI quantiles
+nr.index <- nr.index %>%
+mutate(ldi_cat = case_when(ldi >= 7.80 ~ 'high',
+                             ldi >= 3.92 ~ 'medium',
+                             ldi < 3.92 ~ 'low'))
 ```
 
-```{r ,include=TRUE, eval=TRUE}
-nr.index.sub1 <- nr.index.sub1 %>%
-  mutate(size_cat = case_when (area_acres >= 200 ~ 'large',
-                             area_acres >= 100 ~ 'medium',
-                             .default = 'small'))
+
+```{r ,include=FALSE, eval=FALSE}
+boxplot(nr.index$catchment_acres,
+  ylab = "acres"
+)
 ```
 
-```{r ,include=TRUE, eval=TRUE}
-ggplot(nr.index.sub1, aes(x = area_acres)) +
+```{r ,include=FALSE, eval=FALSE}
+boxplot.stats(nr.index$catchment_acres)$out
+```
+
+```{r ,include=FALSE, eval=TRUE}
+nr.index.out <- boxplot.stats(nr.index$catchment_acres)$out
+nr.index.sub2 <- which(!nr.index$catchment_acres %in% c(nr.index.out))
+```
+
+```{r ,include=FALSE, eval=FALSE}
+ggplot(nr.index[nr.index.sub2,], aes(x = catchment_acres)) +
   geom_histogram (colour = "black", fill = "white", binwidth = 20) +
   ggtitle("Distribution of Catchment Size") +
   xlab("")
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
-ggplot(nr.index.sub1, aes(x = sqrt(area_acres))) +
-  geom_histogram (colour = "black", fill = "white", binwidth = 1) +
-  ggtitle("Distribution of Catchment Size") +
-  xlab("")
-```
-
-```{r ,include=TRUE, eval=TRUE}
-ggplot(nr.index, aes(x = nr_value_index)) +
+ggplot(nr.index[nr.index.sub2,], aes(x = nr_value_index)) +
   geom_histogram (colour = "black", fill = "white", binwidth = 2) +
   ggtitle("Distribution of NR Index Values") +
   xlab("")
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
-ggplot(nr.index, aes(nr_value_index_narrative)) +
+ggplot(nr.index[nr.index.sub2,], aes(nr_value_index_narrative)) +
   geom_bar(colour = "black", fill = "white", stat = "count") +
   scale_x_discrete(limits=c("high value", "moderately high value", "moderate value", "limited value")) +
   ggtitle("Number of Catchments by Value Rating") +
@@ -260,7 +264,7 @@ ggplot(nr.index, aes(nr_value_index_narrative)) +
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
-ggplot(nr.index, aes(x = nr_value_index_narrative, y = sqrt(area_acres))) +
+ggplot(nr.index, aes(x = nr_value_index_narrative, y = catchment_acres)) +
   geom_bar(stat = "identity") +
   scale_x_discrete(limits=c("high value", "moderately high value", "moderate value", "limited value")) +
   ggtitle("Acres by Value Rating") +
@@ -268,18 +272,115 @@ ggplot(nr.index, aes(x = nr_value_index_narrative, y = sqrt(area_acres))) +
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
-ggplot(nr.index, aes(x = area_acres, y = nr_value_index)) +
-  geom_point(aes(shape = factor(nr_value_index_narrative))) +
-  geom_smooth(method=lm)
+fqai_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "avg_fqai",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence interval
+                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+fqai_ldi_plot
 ```
-
-#### Let's remove that huge Bradley Woods cathcment and plto again
 
 ```{r ,include=TRUE, eval=TRUE}
-ggplot(nr.index.sub1, aes(x = sqrt(area_acres), y = nr_value_index)) +
-  geom_point(aes(shape = factor(nr_value_index_narrative))) +
-  geom_smooth(method=lm)
+fqai_ldi_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "avg_fqai",
+                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+fqai_ldi_boxplot
 ```
 
-ggplot(nr.index.sub1, aes(x=size_cat, y=nr_value_index)) + geom_boxplot() + theme(axis.text.x  = element_text(angle=45, vjust=0.5)) + xlab("Size Category") + ylab("Index Score") + stat_n_text()
+```{r ,include=TRUE, eval=TRUE}
+hmfei_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "weighted_avg_hmfei",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence interval
+                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+hmfei_ldi_plot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+hmfei_score_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "weighted_avg_hmfei",
+                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+hmfei_score_boxplot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+oram_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "weighted_avg_oram",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence interval
+                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+oram_ldi_plot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+oram_score_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "weighted_avg_oram",
+                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+oram_score_boxplot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+perc_wet_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "percent_wetland",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence interval
+                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+perc_wet_ldi_plot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+perc_wet_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "percent_wetland",
+                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+perc_wet_boxplot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+perc_core_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "percent_core",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence interval
+                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+perc_core_ldi_plot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+perc_core_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "percent_core",
+                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+perc_core_boxplot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+rare_spp_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "rare_feature_metric_score",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence interval
+                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+rare_spp_ldi_plot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+rare_features_score_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "rare_feature_metric_score",
+                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+rare_features_score_boxplot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+index_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "nr_value_index",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence interval
+                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+index_ldi_plot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+index_score_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "nr_value_index",
+                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+index_score_boxplot
+```
+
 
