@@ -51,7 +51,7 @@ conn <- dbConnect(RPostgres::Postgres(),
 
 Describe process for delineating catchments to use as assessment areas.
 
-# Metric Descritpions
+# Metric Descriptions
 
 ## Wetland Quantity
 
@@ -272,115 +272,183 @@ ggplot(nr.index, aes(x = nr_value_index_narrative, y = catchment_acres)) +
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
-fqai_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "avg_fqai",
+index_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "nr_value_index",
+                add = "reg.line", 
+                conf.int = TRUE)+
+  stat_cor(method = "pearson", label.x = 3, label.y = 30)
+index_ldi_plot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+index_ldi_plot2 <- ggscatter(nr.index, x = "ldi", y = "nr_value_index",
                 add = "reg.line",               # Add regression line
                 conf.int = TRUE,                # Add confidence interval
-                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
+                color = "ldi_cat", palette = "jco", # Color by groups
                 shape = "ldi_cat")+
   stat_cor(aes(color = ldi_cat), label.x = 3)
+index_ldi_plot2
+```
+
+```{r ,include=TRUE, eval=TRUE}
+index_score_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "nr_value_index",
+                color = "ldi_cat", palette = "jco") # Color by groups
+index_score_boxplot
+```
+
+```{r ,include=TRUE, eval=TRUE}
+fqai_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "avg_fqai",
+                add = "reg.line", 
+                conf.int = TRUE)+
+  stat_cor(method = "pearson", label.x = 3, label.y = 30)
 fqai_ldi_plot
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
+fqai_ldi_plot2 <- ggscatter(nr.index, x = "ldi", y = "avg_fqai",
+                add = "reg.line",
+                conf.int = TRUE,
+                color = "ldi_cat", palette = "jco",
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+fqai_ldi_plot2
+```
+
+```{r ,include=TRUE, eval=TRUE}
 fqai_ldi_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "avg_fqai",
-                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+                color = "ldi_cat", palette = "jco") # Color by groups
 fqai_ldi_boxplot
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
 hmfei_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "weighted_avg_hmfei",
-                add = "reg.line",               # Add regression line
-                conf.int = TRUE,                # Add confidence interval
-                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
-                shape = "ldi_cat")+
-  stat_cor(aes(color = ldi_cat), label.x = 3)
+                add = "reg.line", 
+                conf.int = TRUE)+
+  stat_cor(method = "pearson", label.x = 3, label.y = 30)
 hmfei_ldi_plot
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
+hmfei_ldi_plot2 <- ggscatter(nr.index, x = "ldi", y = "weighted_avg_hmfei",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence interval
+                color = "ldi_cat", palette = "jco", # Color by groups
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+hmfei_ldi_plot2
+```
+
+```{r ,include=TRUE, eval=TRUE}
 hmfei_score_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "weighted_avg_hmfei",
-                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+                color = "ldi_cat", palette = "jco") # Color by groups
 hmfei_score_boxplot
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
 oram_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "weighted_avg_oram",
-                add = "reg.line",               # Add regression line
-                conf.int = TRUE,                # Add confidence interval
-                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
-                shape = "ldi_cat")+
-  stat_cor(aes(color = ldi_cat), label.x = 3)
+                add = "reg.line", 
+                conf.int = TRUE)+
+  stat_cor(method = "pearson", label.x = 3, label.y = 30)
 oram_ldi_plot
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
+oram_ldi_plot2 <- ggscatter(nr.index, x = "ldi", y = "weighted_avg_oram",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence interval
+                color = "ldi_cat", palette = "jco", # Color by groups
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+oram_ldi_plot2
+```
+
+```{r ,include=TRUE, eval=TRUE}
 oram_score_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "weighted_avg_oram",
-                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+                color = "ldi_cat", palette = "jco") # Color by groups
 oram_score_boxplot
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
 perc_wet_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "percent_wetland",
-                add = "reg.line",               # Add regression line
-                conf.int = TRUE,                # Add confidence interval
-                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
-                shape = "ldi_cat")+
-  stat_cor(aes(color = ldi_cat), label.x = 3)
+                add = "reg.line", 
+                conf.int = TRUE)+
+  stat_cor(method = "pearson", label.x = 3, label.y = 30)
 perc_wet_ldi_plot
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
+perc_wet_ldi_plot2 <- ggscatter(nr.index, x = "ldi", y = "percent_wetland",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence interval
+                color = "ldi_cat", palette = "jco", # Color by groups
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+perc_wet_ldi_plot2
+```
+
+```{r ,include=TRUE, eval=TRUE}
 perc_wet_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "percent_wetland",
-                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+                color = "ldi_cat", palette = "jco") # Color by groups
 perc_wet_boxplot
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
+perc_wet_by_index_cat_boxplot <- ggboxplot(nr.index, x = "nr_value_index_narrative", y = "percent_wetland",
+                color = "nr_value_index_narrative", palette = "jco")
+perc_wet_by_index_cat_boxplot
+```
+
+```{r ,include=TRUE, eval=TRUE}
 perc_core_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "percent_core",
-                add = "reg.line",               # Add regression line
-                conf.int = TRUE,                # Add confidence interval
-                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
-                shape = "ldi_cat")+
-  stat_cor(aes(color = ldi_cat), label.x = 3)
+                add = "reg.line", 
+                conf.int = TRUE)+
+  stat_cor(method = "pearson", label.x = 3, label.y = 30)
 perc_core_ldi_plot
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
+perc_core_ldi_plot2 <- ggscatter(nr.index, x = "ldi", y = "percent_core",
+                add = "reg.line",               # Add regression line
+                conf.int = TRUE,                # Add confidence interval
+                color = "ldi_cat", palette = "jco", # Color by groups
+                shape = "ldi_cat")+
+  stat_cor(aes(color = ldi_cat), label.x = 3)
+perc_core_ldi_plot2
+```
+
+```{r ,include=TRUE, eval=TRUE}
 perc_core_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "percent_core",
-                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
+                color = "ldi_cat", palette = "jco") # Color by groups
 perc_core_boxplot
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
+perc_core_by_index_cat_boxplot <- ggboxplot(nr.index, x = "nr_value_index_narrative", y = "percent_core",
+                color = "nr_value_index_narrative", palette = "jco")
+perc_core_by_index_cat_boxplot
+```
+
+```{r ,include=TRUE, eval=TRUE}
 rare_spp_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "rare_feature_metric_score",
-                add = "reg.line",               # Add regression line
-                conf.int = TRUE,                # Add confidence interval
-                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
-                shape = "ldi_cat")+
-  stat_cor(aes(color = ldi_cat), label.x = 3)
+                add = "reg.line", 
+                conf.int = TRUE)+
+  stat_cor(method = "pearson", label.x = 3, label.y = 30)
 rare_spp_ldi_plot
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
-rare_features_score_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "rare_feature_metric_score",
-                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
-rare_features_score_boxplot
-```
-
-```{r ,include=TRUE, eval=TRUE}
-index_ldi_plot <- ggscatter(nr.index, x = "ldi", y = "nr_value_index",
+rare_spp_ldi_plot2 <- ggscatter(nr.index, x = "ldi", y = "rare_feature_metric_score",
                 add = "reg.line",               # Add regression line
                 conf.int = TRUE,                # Add confidence interval
-                color = "ldi_cat", palette = "jco", # Color by groups "cyl"
+                color = "ldi_cat", palette = "jco", # Color by groups
                 shape = "ldi_cat")+
   stat_cor(aes(color = ldi_cat), label.x = 3)
-index_ldi_plot
+rare_spp_ldi_plot2
 ```
 
 ```{r ,include=TRUE, eval=TRUE}
-index_score_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "nr_value_index",
-                color = "ldi_cat", palette = "jco") # Color by groups "cyl"
-index_score_boxplot
+rare_features_score_boxplot <- ggboxplot(nr.index, x = "ldi_cat", y = "rare_feature_metric_score",
+                color = "ldi_cat", palette = "jco") # Color by groups
+rare_features_score_boxplot
 ```
 
 
